@@ -18,7 +18,7 @@ https://x.com/sinore69/status/1936407407623606681
 git clone https://github.com/sinore69/emailTui
 cd emailTui
 ```
-### 2.Enable IMAP in Gmail settings.
+### 2. Enable IMAP in Gmail settings.
 
 ### 3. Use an App Password if you have 2FA enabled (generate one from https://myaccount.google.com/apppasswords).
 
