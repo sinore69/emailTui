@@ -40,6 +40,7 @@ var (
 	focusedPane        = "list"
 )
 ```
+### 5. Run your code
 
 ```
 go run main.go
