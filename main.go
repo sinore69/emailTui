@@ -20,9 +20,10 @@ var (
 	mbox        *imap.MailboxStatus
 	batchSize   uint32 = 10
 	offset      uint32 = 0
-	username           = "sinore182@gmail.com"
-	password           = "vdeb wtod zatl llxg"
+	username           = ""
+	password           = ""
 	mailboxName        = "INBOX"
+	focusedPane        = "list"
 )
 
 var renderedBodies = make(map[uint32]string)
@@ -54,10 +55,22 @@ func fetchEmails() ([]*imap.Message, error) {
 
 	var fetched []*imap.Message
 	for msg := range msgChan {
-		fetched = append([]*imap.Message{msg}, fetched...) // Reverse order
+		fetched = append([]*imap.Message{msg}, fetched...)
 	}
 
 	return fetched, nil
+}
+
+func updateFocus() {
+	if focusedPane == "list" {
+		list.SetBorderColor(tcell.ColorYellow)
+		textView.SetBorderColor(tcell.ColorWhite)
+		app.SetFocus(list)
+	} else {
+		list.SetBorderColor(tcell.ColorWhite)
+		textView.SetBorderColor(tcell.ColorYellow)
+		app.SetFocus(textView)
+	}
 }
 
 func renderList(msgs []*imap.Message) {
@@ -77,6 +90,7 @@ func renderList(msgs []*imap.Message) {
 func displayBody(msg *imap.Message) {
 	if cached, ok := renderedBodies[msg.SeqNum]; ok {
 		textView.SetText(cached)
+		textView.ScrollToBeginning()
 		return
 	}
 
@@ -84,6 +98,7 @@ func displayBody(msg *imap.Message) {
 	r := msg.GetBody(section)
 	if r == nil {
 		textView.SetText("No body available")
+		textView.ScrollToBeginning()
 		return
 	}
 
@@ -95,6 +110,7 @@ func displayBody(msg *imap.Message) {
 		body := string(buf[:n])
 		renderedBodies[msg.SeqNum] = body
 		textView.SetText(body)
+		textView.ScrollToBeginning()
 		return
 	}
 
@@ -110,6 +126,7 @@ func displayBody(msg *imap.Message) {
 			body := string(buf[:n])
 			renderedBodies[msg.SeqNum] = body
 			textView.SetText(body)
+			textView.ScrollToBeginning()
 			return
 		}
 	}
@@ -169,14 +186,23 @@ func main() {
 	}
 
 	app = tview.NewApplication()
-	list = tview.NewList().ShowSecondaryText(false)
-	textView = tview.NewTextView().SetWrap(true).SetDynamicColors(true)
 
-	spacer := tview.NewBox() // Empty box acts as a gap
+	list = tview.NewList()
+	list.ShowSecondaryText(false)
+	list.SetBorder(true)
+	list.SetTitle("Emails")
+
+	textView = tview.NewTextView()
+	textView.SetWrap(true)
+	textView.SetDynamicColors(true)
+	textView.SetBorder(true)
+	textView.SetTitle("Content (Tab to focus, ↑↓ to scroll)")
+
+	spacer := tview.NewBox()
 
 	flex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(list, 40, 1, true).
-		AddItem(spacer, 1, 0, false). // 1-character gap
+		AddItem(spacer, 1, 0, false).
 		AddItem(textView, 0, 2, false)
 
 	if err := connectAndLoad(); err != nil {
@@ -184,37 +210,58 @@ func main() {
 	}
 	defer c.Logout()
 
+	updateFocus()
+
 	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		switch e.Rune() {
-		case 'j':
-			if offset+batchSize < mbox.Messages {
-				offset += batchSize
-				msgs, _ := fetchEmails()
-				messages = msgs
-				renderList(messages)
+		switch e.Key() {
+		case tcell.KeyTab:
+
+			if focusedPane == "list" {
+				focusedPane = "text"
+			} else {
+				focusedPane = "list"
 			}
-		case 'k':
-			if offset >= batchSize {
-				offset -= batchSize
-				msgs, _ := fetchEmails()
-				messages = msgs
-				renderList(messages)
-			}
-		case 'r':
-			index := list.GetCurrentItem()
-			if index < len(messages) {
-				markAsRead(messages[index])
-			}
-		case 'd':
-			index := list.GetCurrentItem()
-			if index < len(messages) {
-				deleteEmail(messages[index])
-				// Refresh after delete
-				msgs, _ := fetchEmails()
-				messages = msgs
-				renderList(messages)
+			updateFocus()
+			return nil
+		}
+
+		if focusedPane == "list" {
+			switch e.Rune() {
+			case 'j':
+				if offset+batchSize < mbox.Messages {
+					offset += batchSize
+					msgs, _ := fetchEmails()
+					messages = msgs
+					renderList(messages)
+				}
+				return nil
+			case 'k':
+				if offset >= batchSize {
+					offset -= batchSize
+					msgs, _ := fetchEmails()
+					messages = msgs
+					renderList(messages)
+				}
+				return nil
+			case 'r':
+				index := list.GetCurrentItem()
+				if index < len(messages) {
+					markAsRead(messages[index])
+				}
+				return nil
+			case 'd':
+				index := list.GetCurrentItem()
+				if index < len(messages) {
+					deleteEmail(messages[index])
+					// Refresh after delete
+					msgs, _ := fetchEmails()
+					messages = msgs
+					renderList(messages)
+				}
+				return nil
 			}
 		}
+
 		return e
 	})
 
