@@ -7,6 +7,8 @@ This client connects to your Gmail account using IMAP and allows you to:
 - Read email bodies
 
 ---
+## 📸 Preview
+https://x.com/sinore69/status/1936407407623606681
 
 ## 🛠️ Installation
 
