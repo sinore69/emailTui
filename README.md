@@ -13,6 +13,7 @@ This client connects to your Gmail account using IMAP and allows you to:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/email-tui-go.git
-cd email-tui-go
+git clone https://github.com/sinore69/emailTui
+cd emailTui
+go run main.go
 
